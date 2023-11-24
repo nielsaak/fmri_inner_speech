@@ -31,22 +31,88 @@ import nilearn
 # In[4]:
 
 
-import pickle
+
+# In[3]:
+
+
+from nilearn.glm.first_level import first_level_from_bids
+
+#BIDS directory
+data_dir='/work/816119/InSpePosNegData/BIDS_2023E/' 
+# BIDS derivatives (contains preprocessed data)
+derivatives_dir=  '/work/816119/InSpePosNegData/BIDS_2023E/derivatives'  
+
+# Name for experiment in the BIDS directory
+task_label = 'boldinnerspeech'
+# Label for data that are spatially aligned to the MNI152 template (i.e. spatially normalised)
+space_label ='MNI152NLin2009cAsym'
+#Run the function that can gather all the needed info from a BIDS folder
+models, models_run_imgs, models_events, models_confounds = \
+    first_level_from_bids(
+        data_dir, task_label, derivatives_folder=derivatives_dir, n_jobs=6, verbose=0,
+        img_filters=[('desc', 'preproc')])
+
+
+# In[8]:
+
+
+confound_friston24_GSR = ['global_signal',
+                 'c_comp_cor_02', 'csf', 'white_matter',
+                 'trans_x','trans_y','trans_z',
+                 'rot_x','rot_y','rot_z']
+  
+# Subset confounds with selection
+for ii in range(len(models_confounds)):
+    confounds1=models_confounds[ii][:].copy()
+    for i in range(len(confounds1)):
+        confounds2=confounds1[i].copy()
+        confounds2=confounds2[confound_friston24_GSR]
+        #Removing NAs in the first row.
+        confounds2.loc[0,:]=confounds2.loc[1,:]
+        confounds1[i]=confounds2
+    models_confounds[ii][:]=confounds1
 
 now = datetime.now()
-print('Starting cell:',now.strftime("%H:%M:%S"))
+print('Finishing cell:',now.strftime("%H:%M:%S"))
 
-f = open('/work/807746/nielss_folder/fMRI_notebooks/data_fmri/InSpe_first_level_models_othercued_my.pkl', 'rb')
-models, models_run_imgs, models_events, models_confounds = pickle.load(f)
+
+# In[10]:
+
+
+#Print model confounds for first participant, first run
+models_events_old = models_events
+
+events_sub= ['onset','duration','trial_type']
+
+# Subset model events with selection
+for ii in range(len(models_events)):
+    events1=models_events[ii][:]
+    for i in range(len(events1)):
+        events2=events1[i]
+        events2=events2[events_sub]
+        events1[i]=events2
+        #Rename trials to make contrasting easier
+        events1[i].replace({'IMG_NS': 'NS', 'IMG_PS': 'PS', 'IMG_NO': 'NO', 'IMG_PO': 'PO','IMG_BI': 'B'}, inplace = True)
+
+       
+    models_events[ii][:]=events1
+    
+now = datetime.now()
+print('Finishing cell:',now.strftime("%H:%M:%S"))
+
+
+# In[16]:
+
+
+f = open('/work/807746/nielss_folder/fMRI_notebooks/data_fmri/InSpe_first_level_models_othercued_my.pkl', 'wb')
+pickle.dump([models, models_run_imgs, models_events, models_confounds], f)
 f.close()
 
-
-
 now = datetime.now()
-print('Loaded models:',now.strftime("%H:%M:%S"))
+print('Finishing cell:',now.strftime("%H:%M:%S"))
 
 
-# ### Figuring out what is in the models_events variable
+# ### choosing participant and relevant sessions
 models_run_imgs = [models_run_imgs[3][i] for i in [1,3,5]]
 models_events = [models_events[3][i] for i in [1,3,5]]
 models_confounds = [models_confounds[3][i] for i in [1,3,5]]
@@ -95,14 +161,6 @@ print('Finish making single trial models:',now.strftime("%H:%M:%S"))
 
 # ### Check out the created design matrix
 # Note that the index represents the frame times
-
-# In[7]:
-
-
-print(lsa_dm[0])
-
-
-# ## Plot the new design matrices
 
 # In[8]:
 
